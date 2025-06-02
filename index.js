@@ -12,9 +12,20 @@ app.get("/", (req, res) => {
 });
 
 app.get("/video-info", async (req, res) => {
-  const videoURL = req.query.url;
-  if (!videoURL || !ytdl.validateURL(videoURL)) {
-    return res.status(400).json({ error: "Invalid or missing URL" });
+  let videoURL = req.query.url;
+
+  if (!videoURL) {
+    return res.status(400).json({ error: "Missing URL" });
+  }
+
+  // Convert youtu.be short URLs to full YouTube URLs
+  if (videoURL.includes("youtu.be")) {
+    const videoId = videoURL.split("/").pop().split("?")[0];
+    videoURL = `https://www.youtube.com/watch?v=${videoId}`;
+  }
+
+  if (!ytdl.validateURL(videoURL)) {
+    return res.status(400).json({ error: "Invalid YouTube URL" });
   }
 
   try {
@@ -24,15 +35,16 @@ app.get("/video-info", async (req, res) => {
     const response = {
       title: info.videoDetails.title,
       thumbnail: info.videoDetails.thumbnails.pop().url,
-      formats: formats.map(f => ({
+      formats: formats.map((f) => ({
         quality: f.qualityLabel,
         url: f.url,
-        type: f.mimeType.split(";")[0]
-      }))
+        type: f.mimeType.split(";")[0],
+      })),
     };
 
     res.json(response);
   } catch (err) {
+    console.error("Error fetching video info:", err.message);
     res.status(500).json({ error: "Failed to fetch video info" });
   }
 });
